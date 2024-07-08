@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  server:
+    container_name: coreserver
+    build:
+      context: ./main
+      dockerfile: Dockerfile
+    restart: on-failure
+    ports: 
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - PSQL_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin}@postgres/${POSTGRES_DB:-recruitcrm}
+      - JWT_SECRET="${JWT:-01010f636110a9b7401102ea78813d1b}"
+    networks: 
+      - primary
+    depends_on:
+      - psql 
+  
+  microservice:
+    container_name: microservice
+    build:
+      context: ./microservice
+      dockerfile: Dockerfile
+    restart: on-failure
+    ports: 
+      - "${PORT:-3030}:${PORT:-3030}"
+    environment:
+      - NODE_ENV=production
+      - PORT=3030
+      - PSQL_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin}@postgres/${POSTGRES_DB:-recruitcrm}
+    networks: 
+      - primary
+    depends_on:
+      - server 
+      - psql
+
+
+  psql:
+    container_name: postgres
+    image: postgres:16.1-alpine
+    restart: on-failure
+    volumes:
+      - ./psql_vol:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-recruitcrm}
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    # Uncomment the below 2 lines if you want to connect to psql from outside the container
+    # but for our use case this just adds a extra attack surface
+    # ports:
+    #   - 5432:5432
+    networks:
+      - primary
+
+volumes:
+  psql_vol:
+networks:
+  primary:
